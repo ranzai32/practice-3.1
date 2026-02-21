@@ -1,11 +1,14 @@
 package repository
 
 import (
+	"context"
+	"errors"
 	"practice4/practice-4/internal/repository/_postgres"
 	"practice4/practice-4/internal/repository/_postgres/users"
 	"practice4/practice-4/pkg/modules"
-	"context"
 )
+
+var ErrNotFound = errors.New("not found")
 
 type UserRepository interface {
 	GetAll(ctx context.Context) ([]modules.User, error)

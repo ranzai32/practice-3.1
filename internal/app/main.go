@@ -21,7 +21,7 @@ func Run() {
 
 	repositories := repository.NewRepositories(_postgre)
 
-	users, err := repositories.GetUsers()
+	users, err := repositories.AllUsers()
 	if err != nil {
 		fmt.Printf("Error fetching users: %v\n", err)
 		return
