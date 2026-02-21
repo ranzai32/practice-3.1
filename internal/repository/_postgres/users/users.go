@@ -6,11 +6,9 @@ import (
 	"practice4/practice-4/internal/repository/_postgres"
 	"practice4/practice-4/pkg/modules"
 	"time"
-	"errors"
 	"fmt"
+	"practice4/practice-4/pkg/apperrors"
 )
-
-var ErrNotFound = errors.New("user not found") // i think it's better to separate this const to dedicated package for consistency
 
 type Repository struct {
 	db            *_postgres.Dialect
@@ -38,7 +36,7 @@ func (r *Repository) GetByID(ctx context.Context, id int) (*modules.User, error)
 	user := &modules.User{}
 	err := r.db.DB.GetContext(ctx, user, "SELECT id, name, email, created_at FROM users WHERE id = $1", id)
 	if err == sql.ErrNoRows {
-		return nil, ErrNotFound // really not found
+		return nil, apperrors.ErrNotFound // really not found
 	}
 
 	if err != nil {
@@ -73,7 +71,7 @@ func (r *Repository) Update(ctx context.Context, user *modules.User) error {
 	}
 
 	if rowsAffected == 0 {
-		return ErrNotFound // no rows updated, user not found
+		return apperrors.ErrNotFound // no rows updated, user not found
 	}
 
 	return nil
@@ -92,7 +90,7 @@ func (r *Repository) Delete(ctx context.Context, id int) error {
 	}
 
 	if rowsAffected == 0 {
-		return ErrNotFound // no rows deleted, user not found
+		return apperrors.ErrNotFound // no rows deleted, user not found
 	}
 
 	return nil
