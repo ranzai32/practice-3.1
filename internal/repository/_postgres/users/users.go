@@ -3,11 +3,14 @@ package users
 import (
 	"context"
 	"database/sql"
-	"fmt"
 	"practice4/practice-4/internal/repository/_postgres"
 	"practice4/practice-4/pkg/modules"
 	"time"
+	"errors"
+	"fmt"
 )
+
+var ErrNotFound = errors.New("user not found") // i think it's better to separate this const to dedicated package for consistency
 
 type Repository struct {
 	db            *_postgres.Dialect
@@ -28,7 +31,6 @@ func (r *Repository) GetAll(ctx context.Context) ([]modules.User, error) {
 		return nil, err
 	}
 
-	fmt.Println(users)
 	return users, nil
 }
 
@@ -44,4 +46,54 @@ func (r *Repository) GetByID(ctx context.Context, id int) (*modules.User, error)
 	}
 
 	return user, nil
+}
+
+func (r *Repository) Create(ctx context.Context, user *modules.User) (int64, error) {
+	var id int64
+	err := r.db.DB.QueryRowContext(ctx, "INSERT INTO users (name, email, created_at) VALUES ($1, $2, $3) RETURNING id",
+		user.Name, user.Email, time.Now()).Scan(&id)
+	if err != nil {
+		return 0, err
+	}
+
+	return id, nil
+}
+
+func (r *Repository) Update(ctx context.Context, user *modules.User) error {
+	result, err := r.db.DB.ExecContext(ctx, "UPDATE users SET name = $1, email = $2 WHERE id = $3",
+		user.Name, user.Email, user.ID)
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return ErrNotFound // no rows updated, user not found
+	}
+
+	return nil
+}
+
+func (r *Repository) Delete(ctx context.Context, id int) error {
+	result, err := r.db.DB.ExecContext(ctx, "DELETE FROM users where id = $1", id)
+	if err != nil {
+		return err
+	}
+	
+	rowsAffected, err := result.RowsAffected()
+
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return ErrNotFound // no rows deleted, user not found
+	}
+
+	return nil
 }
