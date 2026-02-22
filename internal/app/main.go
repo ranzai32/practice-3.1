@@ -2,31 +2,56 @@ package app
 
 import (
 	"context"
-	"fmt"
+	"log"
+	"net/http"
 	"os"
+	"os/signal"
+	"practice4/practice-4/internal/handler"
 	"practice4/practice-4/internal/repository"
 	"practice4/practice-4/internal/repository/_postgres"
+	"practice4/practice-4/internal/router"
+	"practice4/practice-4/internal/usecase"
 	"practice4/practice-4/pkg/modules"
 	"strconv"
+	"syscall"
 	"time"
 )
 
 func Run() {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
 	dbConfig := initPostgreConfig()
 
-	_postgre := _postgres.NewPGXDialect(ctx, dbConfig)
+	db := _postgres.NewPGXDialect(context.Background(), dbConfig)
 
-	repositories := repository.NewRepositories(_postgre)
+	repos := repository.NewRepositories(db)
+	uc := usecase.NewUserUsecase(repos.Users)
+	h := handler.NewUserHandler(uc)
 
-	users, err := repositories.Users.GetAll(ctx)
-	if err != nil {
-		fmt.Printf("Error fetching users: %v\n", err)
-		return
+	apiKey := getEnv("API_KEY", "secret")
+	r := router.NewRouter(h, apiKey)
+
+	srv := &http.Server{
+		Addr:    ":8080",
+		Handler: r,
 	}
-	fmt.Printf("Users: %+v\n", users)
+
+	go func() {
+		log.Printf("server started on :8080")
+		if err := srv.ListenAndServe(); err != http.ErrServerClosed {
+			log.Fatalf("server error: %v", err)
+		}
+	}()
+
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+
+	log.Printf("shutting down server...")
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := srv.Shutdown(ctx); err != nil {
+		log.Fatalf("shutdown error: %v", err)
+	}
+	log.Printf("server stopped")
 }
 
 func getEnv(key, fallback string) string {
