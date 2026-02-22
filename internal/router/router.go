@@ -4,6 +4,10 @@ import (
 	"net/http"
 	"practice4/practice-4/internal/handler"
 	"practice4/practice-4/internal/middleware"
+
+	_ "practice4/practice-4/docs"
+
+	httpSwagger "github.com/swaggo/http-swagger"
 )
 
 func NewRouter(h *handler.UserHandler, authkey string) http.Handler {
@@ -11,6 +15,7 @@ func NewRouter(h *handler.UserHandler, authkey string) http.Handler {
 	authedMux.HandleFunc("GET /users", h.GetAll)
 	authedMux.HandleFunc("GET /users/{id}", h.GetByID)
 	authedMux.HandleFunc("POST /users", h.Create)
+	authedMux.HandleFunc("POST /users/audit", h.CreateWithAudit)
 	authedMux.HandleFunc("PUT /users/{id}", h.Update)
 	authedMux.HandleFunc("DELETE /users/{id}", h.Delete)
 
@@ -20,6 +25,7 @@ func NewRouter(h *handler.UserHandler, authkey string) http.Handler {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(`{"status":"ok"}`))
 	})
+	mux.Handle("/swagger/", httpSwagger.WrapHandler)
 	mux.Handle("/", middleware.AuthMiddleware(authkey)(authedMux))
 
 	return middleware.LoggingMiddleware(mux)

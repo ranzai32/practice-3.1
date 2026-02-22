@@ -15,9 +15,13 @@ import (
 	"strconv"
 	"syscall"
 	"time"
+
+	"github.com/joho/godotenv"
 )
 
 func Run() {
+	_ = godotenv.Load()
+
 	dbConfig := initPostgreConfig()
 
 	db := _postgres.NewPGXDialect(context.Background(), dbConfig)
@@ -26,7 +30,7 @@ func Run() {
 	uc := usecase.NewUserUsecase(repos.Users)
 	h := handler.NewUserHandler(uc)
 
-	apiKey := getEnv("API_KEY", "secret")
+	apiKey := mustEnv("API_KEY")
 	r := router.NewRouter(h, apiKey)
 
 	srv := &http.Server{
@@ -48,10 +52,24 @@ func Run() {
 	log.Printf("shutting down server...")
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
+
 	if err := srv.Shutdown(ctx); err != nil {
 		log.Fatalf("shutdown error: %v", err)
 	}
+
+	if err := db.Close(); err != nil {
+		log.Printf("db close error: %v", err)
+	}
+
 	log.Printf("server stopped")
+}
+
+func mustEnv(key string) string {
+	val := os.Getenv(key)
+	if val == "" {
+		log.Fatalf("missing required environment variable: %s", key)
+	}
+	return val
 }
 
 func getEnv(key, fallback string) string {
@@ -64,11 +82,11 @@ func getEnv(key, fallback string) string {
 func initPostgreConfig() *modules.PostgreConfig {
 	port, _ := strconv.Atoi(getEnv("DB_PORT", "5432"))
 	return &modules.PostgreConfig{
-		Host:        getEnv("DB_HOST", "localhost"),
+		Host:        mustEnv("DB_HOST"),
 		Port:        port,
-		Username:    getEnv("DB_USER", "postgres"),
+		Username:    mustEnv("DB_USER"),
 		Password:    getEnv("DB_PASSWORD", ""),
-		DBName:      getEnv("DB_NAME", "mydb"),
+		DBName:      mustEnv("DB_NAME"),
 		SSLMode:     getEnv("DB_SSLMODE", "disable"),
 		ExecTimeout: 5 * time.Second,
 	}

@@ -52,3 +52,7 @@ func AutoMigrate(cfg *modules.PostgreConfig) {
 		panic(err)
 	}
 }
+
+func (d *Dialect) Close() error {
+	return d.DB.Close()
+}
