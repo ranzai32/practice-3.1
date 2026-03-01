@@ -39,7 +39,7 @@ func Run() {
 	}
 
 	go func() {
-		log.Printf("server started on :8080")
+		log.Println("Starting the Server...")
 		if err := srv.ListenAndServe(); err != http.ErrServerClosed {
 			log.Fatalf("server error: %v", err)
 		}
@@ -49,7 +49,7 @@ func Run() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
-	log.Printf("shutting down server...")
+	log.Println("Shutting down gracefully...")
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
@@ -61,7 +61,7 @@ func Run() {
 		log.Printf("db close error: %v", err)
 	}
 
-	log.Printf("server stopped")
+	log.Println("Server stopped")
 }
 
 func mustEnv(key string) string {

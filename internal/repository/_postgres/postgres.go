@@ -3,7 +3,9 @@ package _postgres
 import (
 	"context"
 	"fmt"
+	"log"
 	"practice4/practice-4/pkg/modules"
+	"time"
 
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
@@ -20,14 +22,26 @@ func NewPGXDialect(ctx context.Context, cfg *modules.PostgreConfig) *Dialect {
 	dsn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
 		cfg.Host, cfg.Port, cfg.Username, cfg.Password, cfg.DBName, cfg.SSLMode)
 
-	db, err := sqlx.Connect("postgres", dsn)
-	if err != nil {
-		panic(err)
+	var db *sqlx.DB
+	var err error
+	maxRetries := 30
+	retryDelay := 2 * time.Second
+
+	for i := 0; i < maxRetries; i++ {
+		db, err = sqlx.Connect("postgres", dsn)
+		if err == nil {
+			err = db.PingContext(ctx)
+			if err == nil {
+				log.Println("Database connection established successfully")
+				break
+			}
+		}
+		log.Printf("Failed to connect to database (attempt %d/%d): %v", i+1, maxRetries, err)
+		time.Sleep(retryDelay)
 	}
 
-	err = db.Ping()
 	if err != nil {
-		panic(err)
+		log.Fatalf("Could not connect to database after %d attempts: %v", maxRetries, err)
 	}
 
 	AutoMigrate(cfg)
